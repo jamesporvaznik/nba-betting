@@ -1,0 +1,12 @@
+{
+    "name": "nba-betting",
+    "private": true,
+    "scripts": {
+        "api": "cd api && npm run dev",
+        "frontend": "cd frontend && npm run dev",
+        "dev": "concurrently \"npm run api\" \"npm run frontend\""
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.1"
+    }
+}
