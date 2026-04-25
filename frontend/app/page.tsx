@@ -23,6 +23,11 @@ export default function Home() {
           <h2 className="text-lg font-semibold mb-1">Teams</h2>
           <p className="text-gray-500 text-sm">Team stats and performance trends</p>
         </Link>
+        <Link href="/players"
+          className="p-6 border rounded-lg hover:bg-gray-50 transition">
+          <h2 className="text-lg font-semibold mb-1">Players</h2>
+          <p className="text-gray-500 text-sm">Players stats and performance trends</p>
+        </Link>
       </div>
     </main>
   );
