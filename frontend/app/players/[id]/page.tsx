@@ -16,14 +16,14 @@ interface PlayerInfo {
   team_abbr: string | null;
 }
 
-interface PlayerRow {
-  display_name: string;
-  position: string | null;
-  height_inches: number | null;
-  weight_lbs: number | null;
-  birth_date: string | null;
-  teams: { abbreviation: string } | null;
-}
+// interface PlayerRow {
+//   display_name: string;
+//   position: string | null;
+//   height_inches: number | null;
+//   weight_lbs: number | null;
+//   birth_date: string | null;
+//   teams: { abbreviation: string } | null;
+// }
 
 interface RawGameLog {
   gamelogid: number;
