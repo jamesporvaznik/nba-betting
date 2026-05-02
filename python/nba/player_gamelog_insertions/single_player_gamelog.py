@@ -24,10 +24,10 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-SEASON = "2022-23"  # Change to whatever season you need
-REQUEST_DELAY = 1.5  # Slightly slower to avoid rate limiting
+SEASON = "2022-23"
+REQUEST_DELAY = 1.5
 RETRY_DELAY = 10
-MAX_RETRIES = 5  # More retries for problematic players
+MAX_RETRIES = 5 
 BATCH_SIZE = 100
 
 # Players you want to retry (add more as needed)
@@ -35,7 +35,7 @@ PROBLEM_PLAYERS = [
     "John Butler Jr.", "Emanuel Miller", "Jordan Schakel"
 ]
 
-# Helper functions (same as your main script)
+# Helper functions to get and format data
 def parse_minutes(min_str: Any) -> float:
     if min_str is None:
         return 0.0
@@ -98,7 +98,7 @@ def compute_game_score(row: Dict[str, Any]) -> Optional[float]:
         )
     except Exception:
         return None
-
+# get player and fetch their gamelog
 def fetch_player_game_logs(player_id: int, player_name: str):
     """Fetch game logs with aggressive retry for problematic players."""
     for attempt in range(MAX_RETRIES):
@@ -131,6 +131,7 @@ def fetch_player_game_logs(player_id: int, player_name: str):
     log.error(f"❌ Failed to fetch data for {player_name} after {MAX_RETRIES} attempts")
     return None
 
+# put data into a dict
 def transform_row_to_dict(row, playerid: int) -> Dict[str, Any]:
     date_str = format_date(row['GAME_DATE'])
     matchup = row.get('MATCHUP', '')
@@ -193,6 +194,7 @@ def transform_row_to_dict(row, playerid: int) -> Dict[str, Any]:
         "gamescore": compute_game_score(row),
     }
 
+# upsert rows into the database
 def upsert_batch(supabase_client: Client, batch: List[Dict], total_upserted: int) -> int:
     if not batch:
         return total_upserted
@@ -213,9 +215,8 @@ def upsert_batch(supabase_client: Client, batch: List[Dict], total_upserted: int
         log.error(f"Batch upsert failed: {e}")
         return total_upserted
 
-# ------------------------------------------------------------------ #
+
 # Main
-# ------------------------------------------------------------------ #
 def main():
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     

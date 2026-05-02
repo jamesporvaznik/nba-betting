@@ -3,6 +3,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 from models.evaluation.metrics import evaluate_regression
 
+# baseling training model with linear regression
 def train_baseline(
     X_train: pd.DataFrame,
     y_train: pd.Series,

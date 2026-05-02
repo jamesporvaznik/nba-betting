@@ -42,22 +42,7 @@ def upsert_data(table_name, records, chunk_size=100):
     else:
         print(f"Successfully upserted {len(records)} records to {table_name}.")
 
-# --- Step 1: Insert / Update Teams ---
-def insert_teams():
-    print("Fetching teams from NBA API...")
-    all_teams = teams.get_teams()
-    records = []
-    for team in all_teams:
-        records.append({
-            'nba_api_id': team['id'],
-            'abbreviation': team['abbreviation'],
-            'full_name': team['full_name'],
-            'city': team['city'],
-        })
-    ''' print(f"Upserting {len(records)} teams into Supabase in batches...")
-        upsert_data('teams', records)'''
-
-# --- Step 2: Prepare Player Records ---
+# Prepare Player Records
 def prepare_player_records(season='2024-25'):
     """Fetch player data from NBA API for a specific season and prepare records for upsert."""
     team_id_map = get_team_id_map()
@@ -148,30 +133,11 @@ def insert_players(season='2025-26'):
     print(f"Upserting {len(player_records)} players into Supabase in batches...")
     upsert_data('players', player_records)
 
-# --- Step 3: Update bbref_id from CSV (if available) ---
-# def update_bbref_ids():
-#     merged_path = "data/processed/players_merged.csv"
-#     if not os.path.exists(merged_path):
-#         print("No merged CSV found. Skipping bbref_id update.")
-#         return
-#     df = pd.read_csv(merged_path)
-#     df = df[df['bbref_id'].notna()]
-#     print(f"Updating bbref_id for {len(df)} players...")
-#     for _, row in df.iterrows():
-#         try:
-#             supabase.table('players').update({
-#                 'bball_ref_id': row['bbref_id']
-#             }).eq('nba_api_id', int(row['nba_id'])).execute()
-#         except Exception as e:
-#             print(f"Error updating bbref_id for NBA ID {row['nba_id']}: {e}")
-#     print("bbref ID update complete.")
-
 if __name__ == "__main__":
     seasons = ['2022-23', '2023-24', '2024-25', '2025-26']
     print("🚀 Starting NBA data import (Supabase API version)...\n")
-    insert_teams()
+    # insert_teams()
     for season in seasons:
         print(f"\n📅 Processing season: {season}")
         insert_players(season)
-    # update_bbref_ids()
     print("\n✨ All done!")

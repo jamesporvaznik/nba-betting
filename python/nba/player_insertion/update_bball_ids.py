@@ -32,27 +32,27 @@ def get_existing_bbref_ids():
 
 if __name__ == "__main__":
 
-    # 1. Get existing basketball reference IDs
+    # Get existing basketball reference IDs
     existing_data = get_existing_bbref_ids()
     
-    # 2. Load the shooting CSV
+    # Load the shooting CSV
     shot_df = pd.read_csv(CSV_PATH)
 
-    # 3. Keep only 2026 season
+    # Keep only 2026 season
     shot_2026 = shot_df[shot_df['season'] == 2018]
 
-    # 4. Get unique player name + player_id pairs
+    # Get unique player name + player_id pairs
     players_2026 = shot_2026[['player', 'player_id']].drop_duplicates()
 
-    # 5. Fetch all current players from your Supabase table
+    # Fetch all current players from your Supabase table
     response = supabase.table(TABLE_NAME).select(NAME_COLUMN).execute()
     supabase_players = response.data
     supabase_names = {p[NAME_COLUMN] for p in supabase_players}
 
-    # 6. Keep only players that exist in your Supabase table
+    # Keep only players that exist in your Supabase table
     players_to_update = players_2026[players_2026['player'].isin(supabase_names)]
 
-    # 7. Split into players who need updates
+    # Split into players who need updates
     players_without_id = []
     players_with_mismatch = []
     
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             # Player not found in existing data (shouldn't happen due to filter above)
             pass
 
-    # 8. Update players without bball_ref_id
+    # Update players without bball_ref_id
     updated_count = 0
     for player_name, csv_player_id in players_without_id:
         result = supabase.table(TABLE_NAME)\
@@ -88,25 +88,3 @@ if __name__ == "__main__":
 
     print(f"\n✅ Updated {updated_count} players with missing bball_ref_id.")
     print(f"❌ Skipped {len(players_with_mismatch)} players with existing IDs (mismatched)")
-    
-    # 9. OPTIONAL: Fix mismatched IDs (uncomment if you want to overwrite existing IDs)
-    # """
-    # fix_mismatch = input("\nDo you want to fix mismatched IDs? (y/n): ").lower()
-    # if fix_mismatch == 'y':
-    #     fixed_count = 0
-    #     for player_name, csv_player_id, current_id in players_with_mismatch:
-    #         result = supabase.table(TABLE_NAME)\
-    #             .update({BBALL_REF_COLUMN: csv_player_id})\
-    #             .eq(NAME_COLUMN, player_name)\
-    #             .execute()
-            
-    #         if hasattr(result, 'error') and result.error:
-    #             print(f"Error fixing {player_name}: {result.error}")
-    #         else:
-    #             fixed_count += 1
-    #             print(f"✓ Fixed {player_name}: {current_id} → {csv_player_id}")
-        
-    #     print(f"\n✅ Fixed {fixed_count} mismatched IDs.")
-    # else:
-    #     print("Skipped fixing mismatched IDs.")
-    # """

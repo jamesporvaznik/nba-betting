@@ -226,9 +226,7 @@ def upsert_batch(supabase_client: Client, batch: list, total_upserted: int) -> i
     log.info(f"Upserted batch of {len(batch)} rows. Total: {new_total}")
     return new_total
 
-# ------------------------------------------------------------------ #
 # Main
-# ------------------------------------------------------------------ #
 def main():
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -273,17 +271,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-    # 2024-25 John Collins, Darius Garland, Simone Fontecchio, Adem Flagler, Aaron Nesmith, 
-    #         Jusuf Nurkic, Craig Porter Jr., Jason Preston, Joshua Primo, Jahmi'us Ramsey, 
-    #         Rodney McGruder, Jaden Springer, Cade Cunningham
-
-
-    # 2023-24 Simone Fontecchio, Wesley Matthews, Skylar Mays, JaVale McGee, Nathan Mensah
-    #          Chimezie Metu, Xavier Moon, Mike Muscala, Boban Marjanovic, Kevin McCullar Jr.
-    #          Bruce Brown, Kobe Brown, Kevon Harris, Thomas Bryant, Talen Horton-Tucker,
-    #          Reggie Jackson, Ty Jerome, AJ Johnson, Drake Powell, Maxime Raynaud,
-
-
-    # 2022-23 John Butler Jr., Emanuel Miller, Jordan Schakel

@@ -16,6 +16,7 @@ from sklearn.metrics import mean_absolute_error
 
 # Feature Importance: How much each feature contributes to the model's prediction.
 
+# evaulate stats and performance of model
 def evaluate_regression(y_true, y_pred, label: str = 'Model'):
     """Print regression evaluation metrics."""
     mae  = mean_absolute_error(y_true, y_pred)
@@ -28,6 +29,7 @@ def evaluate_regression(y_true, y_pred, label: str = 'Model'):
     print(f"  Bias: {bias:.3f}  ({'overpredicting' if bias > 0 else 'underpredicting'})")
     return {'mae': mae, 'rmse': rmse, 'bias': bias}
 
+# evaulate over under accuracy
 def evaluate_over_under(y_true, y_pred, label: str = 'Model'):
     """
     Evaluate over/under accuracy by confidence bucket.
@@ -50,6 +52,7 @@ def evaluate_over_under(y_true, y_pred, label: str = 'Model'):
     print(f"  Accuracy: {accuracy:.1%}")
     return accuracy
 
+# compare confidence and acutal results
 def calibration_report(y_true, y_pred_proba, n_buckets: int = 5):
     """
     Check if confidence scores are well calibrated.

@@ -32,7 +32,8 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-SEASONS = ["2022-23"]  # Test with one season first
+# Test with one season at a time, because seasons start and end at different dates
+SEASONS = ["2022-23"]  
 # SEASONS = ["2022-23", "2023-24", "2024-25", "2025-26"]
 
 TEAMS = ["ATL", "BOS", "BKN", "CHA", "CHI", "CLE", "DAL", "DEN", "DET", "GSW", 
@@ -61,10 +62,7 @@ def create_retry_session():
 import nba_api
 nba_api.session = create_retry_session()
 
-# ------------------------------------------------------------------ #
 # Helper Functions
-# ------------------------------------------------------------------ #
-
 def parse_minutes(minutes_str):
     """Convert minutes string to float."""
     if minutes_str is None or minutes_str == '':
@@ -318,10 +316,7 @@ def upsert_batch(supabase_client: Client, batch: List[Dict], total_upserted: int
     log.info(f"Upserted batch of {len(batch)} rows. Total: {new_total}")
     return new_total
 
-# ------------------------------------------------------------------ #
 # Main Execution
-# ------------------------------------------------------------------ #
-
 def main():
     log.info("="*80)
     log.info("🏀 FETCHING TEAM DEFENSIVE STATS")

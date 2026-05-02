@@ -3,16 +3,18 @@ import pandas as pd
 from supabase import create_client
 from dotenv import load_dotenv
 
+# Create supabase connection
 load_dotenv()
-
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_KEY")
 )
 
+# Seasons from which im importing the data and how im using them
 TRAINING_SEASONS = ['2022-23', '2023-24', '2024-25']
 TEST_SEASON      = '2025-26'
 
+# Load the player gamelogs from players who played more than 20 games in a season and averaged over 10 mins/game
 def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min_minutes: float = 10.0) -> pd.DataFrame:
     """Load player gamelogs from Supabase for given seasons with pagination."""
     if seasons is None:
@@ -47,13 +49,13 @@ def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min
     df = pd.DataFrame(all_data)
     print(f"Loaded {len(df):,} raw game logs")
     
-    # 1. Filter by minimum minutes per game
+    # Filter by minimum minutes per game
     if min_minutes > 0:
         before = len(df)
         df = df[df['minutes'] >= min_minutes]
         print(f"  Filtered out {before - len(df):,} rows with <{min_minutes} minutes played")
     
-    # 2. Filter players with minimum games per season
+    # Filter players with minimum games per season
     if min_games_per_season > 0:
         game_counts = df.groupby(['playerid', 'season']).size().reset_index(name='games')
         valid_players = game_counts[game_counts['games'] >= min_games_per_season]
