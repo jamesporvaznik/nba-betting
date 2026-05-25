@@ -1,5 +1,7 @@
 Full-stack machine learning project predicting NBA player props.
 
+source /Users/james/Projects/nba-betting/.venv/bin/activate
+
 Stack
 - Data: nba_api, basketball reference, nbainjuries(PyPi)
 - Datbase: Supabase
