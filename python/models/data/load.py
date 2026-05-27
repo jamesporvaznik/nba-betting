@@ -82,3 +82,10 @@ def load_teams() -> pd.DataFrame:
         .select('nba_api_id, abbreviation, full_name') \
         .execute()
     return pd.DataFrame(response.data)
+
+def load_clusters() -> pd.DataFrame:
+    response = supabase.table('player_clusters') \
+        .select('player_id, primary_archetype, archetype_0_weight, archetype_1_weight, archetype_2_weight, archetype_3_weight' \
+        'archetype_4_weight, archetype_5_weight, archetype_6_weight, archetype_7_weight') \
+        .execute()
+    return pd.DataFrame(response.data)
