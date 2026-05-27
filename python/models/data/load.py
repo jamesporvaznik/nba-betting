@@ -84,8 +84,134 @@ def load_teams() -> pd.DataFrame:
     return pd.DataFrame(response.data)
 
 def load_clusters() -> pd.DataFrame:
-    response = supabase.table('player_clusters') \
-        .select('player_id, primary_archetype, archetype_0_weight, archetype_1_weight, archetype_2_weight, archetype_3_weight' \
-        'archetype_4_weight, archetype_5_weight, archetype_6_weight, archetype_7_weight') \
+    all_data = []
+    page = 0
+    page_size = 1000
+    
+    while True:
+        response = (
+            supabase.table('player_clusters')
+            .select('player_id, season, primary_archetype, archetype_0_weight, archetype_1_weight, archetype_2_weight, archetype_3_weight', \
+                'archetype_4_weight, archetype_5_weight, archetype_6_weight, archetype_7_weight') \
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
+        
+        if not response.data:
+            break
+            
+        all_data.extend(response.data)
+        
+        if len(response.data) < page_size:
+            break
+            
+        page += 1
+    
+    return pd.DataFrame(all_data)
+
+def load_player_shots() -> pd.DataFrame:
+    all_data = []
+    page = 0
+    page_size = 1000
+    
+    while True:
+        response = (
+            supabase.table('player_shot_locations')
+            .select('player_id, season, shot_zone, fg_pct, frequency_pct') \
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
+        
+        if not response.data:
+            break
+            
+        all_data.extend(response.data)
+        
+        if len(response.data) < page_size:
+            break
+            
+        page += 1
+    
+    return pd.DataFrame(all_data)
+
+def load_team_shots() -> pd.DataFrame:
+
+    response = supabase.table('team_defensive_shot_locations') \
+        .select('team_id, season, shot_zone, fg_pct_allowed, frequency_pct') \
         .execute()
     return pd.DataFrame(response.data)
+
+def load_player_plays() -> pd.DataFrame:
+    all_data = []
+    page = 0
+    page_size = 1000
+    
+    while True:
+        response = (
+            supabase.table('player_playtype_stats')
+            .select('player_id, season, play_type, fg_pct, points_per_possession, poss_pct') \
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
+        
+        if not response.data:
+            break
+            
+        all_data.extend(response.data)
+        
+        if len(response.data) < page_size:
+            break
+            
+        page += 1
+    
+    return pd.DataFrame(all_data)
+
+def load_team_plays() -> pd.DataFrame:
+    all_data = []
+    page = 0
+    page_size = 1000
+    
+    while True:
+        response = (
+            supabase.table('team_defensive_playtype_stats')
+            .select('team_id, season, play_type, fg_pct_allowed, points_allowed_per_possession, poss_pct') \
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
+        
+        if not response.data:
+            break
+            
+        all_data.extend(response.data)
+        
+        if len(response.data) < page_size:
+            break
+            
+        page += 1
+    
+    return pd.DataFrame(all_data)
+
+def load_team_defensive_stats() -> pd.DataFrame:
+    all_data = []
+    page = 0
+    page_size = 1000
+    
+    while True:
+        response = (
+            supabase.table('team_defensive_stats')
+            .select('*') \
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
+        
+        if not response.data:
+            break
+            
+        all_data.extend(response.data)
+        
+        if len(response.data) < page_size:
+            break
+            
+        page += 1
+    
+    return pd.DataFrame(all_data)
