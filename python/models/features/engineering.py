@@ -1,18 +1,28 @@
 import pandas as pd
-import numpy as np
 
 # Stats we want to build rolling features for
 ROLLING_STATS = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes', 'turnovers']
 WINDOWS       = [5, 10]
 
+
+def chronological(df: pd.DataFrame) -> pd.DataFrame:
+    """Order appearances by date; ambiguous same-day player records need review."""
+    df = df.copy()
+    df['date'] = pd.to_datetime(df['date']).dt.normalize()
+    if df[['playerid', 'season', 'date']].isna().any().any():
+        raise ValueError('Missing player, season, or date')
+    if df.duplicated(['playerid', 'season', 'date']).any():
+        raise ValueError('Duplicate player appearances on the same date')
+    return df.sort_values(['playerid', 'date'], kind='stable')
+
 # get rolling averages
 def add_rolling_averages(df: pd.DataFrame) -> pd.DataFrame:
     """Add rolling average features per player. Uses shift(1) to prevent data leakage."""
-    df = df.copy()
+    df = chronological(df)
     for stat in ROLLING_STATS:
         if stat not in df.columns:
             continue
-        grp = df.groupby('playerid')[stat]
+        grp = df.groupby(['playerid', 'season'])[stat]
         for w in WINDOWS:
             df[f'{stat}_avg{w}'] = grp.transform(
                 lambda x: x.shift(1).rolling(w, min_periods=1).mean()
@@ -21,14 +31,16 @@ def add_rolling_averages(df: pd.DataFrame) -> pd.DataFrame:
         df[f'{stat}_avg_season'] = grp.transform(
             lambda x: x.shift(1).expanding(min_periods=1).mean()
         )
+    groups = df.groupby(['playerid', 'season'])
+    df['prior_games_season'] = groups.cumcount()
     return df
 
 # add days of rest as a feature
 def add_rest_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add days of rest and back-to-back flag."""
-    df = df.copy()
+    df = chronological(df)
     df['days_rest'] = (
-        df.groupby('playerid')['date']
+        df.groupby(['playerid', 'season'])['date']
         .diff()
         .dt.days - 1
     ).clip(0, 14)  # cap at 14 days
@@ -42,28 +54,42 @@ def add_game_context(df: pd.DataFrame) -> pd.DataFrame:
     df['is_home'] = (df['homeaway'].str.strip() == 'H').astype(int)
     return df
 
-# not currently being used
 def add_opponent_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add opponent defensive averages — how many points/reb/ast does this
-    opponent typically allow? Computed from the same dataset so it's always
-    available without needing a separate table.
-    Uses shift to avoid leakage.
+    Prior team-game totals allowed, never an average over individual players.
+    Aggregate complete games first, then average strictly earlier dates within
+    each opponent/season. All current-day outcomes are excluded together.
     """
-    df = df.copy()
+    df = chronological(df)
     df['opponent'] = df['opponent'].str.strip()
+    stats = [s for s in ['points', 'rebounds', 'assists'] if s in df.columns]
+    game_key = 'gameid' if 'gameid' in df.columns else 'team'
+    if game_key not in df.columns:
+        raise ValueError('Opponent histories require gameid or team to aggregate games')
+    keys = ['opponent', 'season', 'date']
+    games = df.groupby(keys + [game_key], as_index=False)[stats].sum(min_count=1)
+    # Multiple games on a date, if present, share the same prior-only baseline.
+    daily_sum = games.groupby(keys)[stats].sum(min_count=1)
+    daily_count = games.groupby(keys)[stats].count()
+    prior_sum = daily_sum.groupby(level=['opponent', 'season']).transform(
+        lambda x: x.cumsum().shift(1))
+    prior_count = daily_count.groupby(level=['opponent', 'season']).transform(
+        lambda x: x.cumsum().shift(1))
+    baselines = (prior_sum / prior_count).rename(
+        columns={s: f'opp_{s}_allowed_avg' for s in stats}).reset_index()
+    return df.merge(baselines, on=keys, how='left', validate='many_to_one').sort_values(
+        ['playerid', 'date'], kind='stable').reset_index(drop=True)
 
-    for stat in ['points', 'rebounds', 'assists']:
-        if stat not in df.columns:
-            continue
-        # Average allowed by each opponent up to that date
-        opp_avg = (
-            df.groupby(['opponent', 'season'])[stat]
-            .transform(lambda x: x.shift(1).expanding(min_periods=1).mean())
-        )
-        df[f'opp_{stat}_allowed_avg'] = opp_avg
 
-    return df
+def eligible_rows(df: pd.DataFrame, min_prior_games: int = 20,
+                  min_prior_avg_minutes: float = 10.0) -> pd.DataFrame:
+    """Select prediction rows using only already-engineered pregame history."""
+    if min_prior_games < 0 or min_prior_avg_minutes < 0:
+        raise ValueError('Eligibility thresholds must be nonnegative')
+    mask = df['prior_games_season'] >= min_prior_games
+    if min_prior_avg_minutes > 0:
+        mask &= df['minutes_avg_season'] >= min_prior_avg_minutes
+    return df.loc[mask].copy()
 
 # run all the feature creation functions
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:

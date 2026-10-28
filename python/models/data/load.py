@@ -1,22 +1,22 @@
 import os
+from functools import lru_cache
+from pathlib import Path
 import pandas as pd
 from supabase import create_client
 from dotenv import load_dotenv
 
-# Create supabase connection
-load_dotenv()
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+@lru_cache(maxsize=1)
+def get_client():
+    """Connect only when loading data, without exposing credentials."""
+    load_dotenv(Path(__file__).resolve().parents[2] / '.env')
+    return create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 # Seasons from which im importing the data and how im using them
 TRAINING_SEASONS = ['2022-23', '2023-24', '2024-25']
 TEST_SEASON      = '2025-26'
 
-# Load the player gamelogs from players who played more than 20 games in a season and averaged over 10 mins/game
-def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min_minutes: float = 10.0) -> pd.DataFrame:
-    """Load player gamelogs from Supabase for given seasons with pagination."""
+def load_gamelogs(seasons: list[str] = None) -> pd.DataFrame:
+    """Load complete histories; apply pregame eligibility after engineering."""
     if seasons is None:
         seasons = TRAINING_SEASONS
 
@@ -28,9 +28,10 @@ def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min
     
     while True:
         response = (
-            supabase.table('player_gamelog')
+            get_client().table('player_gamelog')
             .select('*')
             .in_('season', seasons)
+            .order('gamelogid')
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
         )
@@ -49,19 +50,6 @@ def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min
     df = pd.DataFrame(all_data)
     print(f"Loaded {len(df):,} raw game logs")
     
-    # Filter by minimum minutes per game
-    if min_minutes > 0:
-        before = len(df)
-        df = df[df['minutes'] >= min_minutes]
-        print(f"  Filtered out {before - len(df):,} rows with <{min_minutes} minutes played")
-    
-    # Filter players with minimum games per season
-    if min_games_per_season > 0:
-        game_counts = df.groupby(['playerid', 'season']).size().reset_index(name='games')
-        valid_players = game_counts[game_counts['games'] >= min_games_per_season]
-        df = df.merge(valid_players[['playerid', 'season']], on=['playerid', 'season'])
-        print(f"  Retained {len(df):,} rows from players with ≥{min_games_per_season} games/season")
-    
     if not df.empty:
         df['date'] = pd.to_datetime(df['date'])
         df = df.sort_values(['playerid', 'date']).reset_index(drop=True)
@@ -71,14 +59,14 @@ def load_gamelogs(seasons: list[str] = None, min_games_per_season: int = 20, min
 
 def load_players() -> pd.DataFrame:
     """Load player info from Supabase."""
-    response = supabase.table('players') \
+    response = get_client().table('players') \
         .select('nba_api_id, display_name, position, is_active') \
         .execute()
     return pd.DataFrame(response.data)
 
 def load_teams() -> pd.DataFrame:
     """Load team info from Supabase."""
-    response = supabase.table('teams') \
+    response = get_client().table('teams') \
         .select('nba_api_id, abbreviation, full_name') \
         .execute()
     return pd.DataFrame(response.data)
@@ -90,9 +78,10 @@ def load_clusters() -> pd.DataFrame:
     
     while True:
         response = (
-            supabase.table('player_clusters')
-            .select('player_id, season, primary_archetype, archetype_0_weight, archetype_1_weight, archetype_2_weight, archetype_3_weight', \
-                'archetype_4_weight, archetype_5_weight, archetype_6_weight, archetype_7_weight') \
+            get_client().table('player_clusters')
+            .select(','.join(['player_id', 'season', 'primary_archetype'] +
+                             [f'archetype_{i}_weight' for i in range(9)]))
+            .order('season').order('player_id')
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
         )
@@ -116,7 +105,7 @@ def load_player_shots() -> pd.DataFrame:
     
     while True:
         response = (
-            supabase.table('player_shot_locations')
+            get_client().table('player_shot_locations')
             .select('player_id, season, shot_zone, fg_pct, frequency_pct') \
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
@@ -136,7 +125,7 @@ def load_player_shots() -> pd.DataFrame:
 
 def load_team_shots() -> pd.DataFrame:
 
-    response = supabase.table('team_defensive_shot_locations') \
+    response = get_client().table('team_defensive_shot_locations') \
         .select('team_id, season, shot_zone, fg_pct_allowed, frequency_pct') \
         .execute()
     return pd.DataFrame(response.data)
@@ -148,7 +137,7 @@ def load_player_plays() -> pd.DataFrame:
     
     while True:
         response = (
-            supabase.table('player_playtype_stats')
+            get_client().table('player_playtype_stats')
             .select('player_id, season, play_type, fg_pct, points_per_possession, poss_pct') \
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
@@ -173,7 +162,7 @@ def load_team_plays() -> pd.DataFrame:
     
     while True:
         response = (
-            supabase.table('team_defensive_playtype_stats')
+            get_client().table('team_defensive_playtype_stats')
             .select('team_id, season, play_type, fg_pct_allowed, points_allowed_per_possession, poss_pct') \
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
@@ -198,7 +187,7 @@ def load_team_defensive_stats() -> pd.DataFrame:
     
     while True:
         response = (
-            supabase.table('team_defensive_stats')
+            get_client().table('team_defensive_stats')
             .select('*') \
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
