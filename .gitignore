@@ -7,6 +7,10 @@ python/data/raw/
 python/data/processed/
 python/models/artifacts/
 
+# Local database backups, audit outputs, and clustering experiments
+/database/repairs/
+/python/models/clustering_runs/
+
 # Environment variables — never commit these
 .env
 .env.local
