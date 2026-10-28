@@ -100,7 +100,7 @@ def get_all_possible_cols() -> list[str]:
         for w in WINDOWS:
             cols.append(f'{stat}_avg{w}')
         cols.append(f'{stat}_avg_season')
-    cols += ['days_rest', 'is_back_to_back', 'is_home']
+    cols += ['minutes_avg5', 'minutes_avg10', 'days_rest', 'is_back_to_back', 'is_home']
     for stat in ['points', 'rebounds', 'assists']:
         cols.append(f'opp_{stat}_allowed_avg')
     return cols
