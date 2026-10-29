@@ -1,5 +1,91 @@
 Full-stack machine learning project predicting NBA player props.
 
+Current-season collection
+
+From the repository root, with dependencies installed in `.venv`:
+
+```bash
+# Preview complete regular-season games through yesterday in New York.
+.venv/bin/python -B python/nba/ingest_daily.py
+
+# Collect, validate, commit, and independently verify; capture research data weekly.
+.venv/bin/python -B python/nba/ingest_daily.py --apply --profiles weekly
+
+# Collect the latest published injury report into Supabase; omit --apply to preview.
+.venv/bin/python -B python/nba/collect_injuries.py --apply
+
+# Preview macOS schedules; add --install to register them.
+.venv/bin/python -B python/nba/install_ingestion_schedule.py --injuries
+```
+
+Daily ingestion updates `players`, `player_gamelog`, `team_defensive_stats`,
+`player_team_stints` and `player_game_absences`. It rereads the current season
+so missed runs and NBA corrections can be reconciled. It checks team/player
+totals, paired scores, minutes including overtime, and recent final-game coverage
+against ScoreboardV3. Ambiguous player attribution requires an independently
+captured traditional box score. Pace and opponent season-to-date pace baselines
+follow the audited formulas and strictly earlier game dates. Only current-season
+regular-season `002` games are included; preseason, playoffs, All-Star games and
+the separate Cup championship are excluded. Historical writes require
+`--allow-historical` and an explicit matching season/cutoff.
+
+The default is a read-only preview. Each run saves raw compressed NBA responses,
+a database snapshot and a source-checked plan under the git-ignored
+`python/data/raw/ingestion/SEASON/`. Apply a reviewed capture without another NBA
+fetch using `--apply-plan PATH/plan.json`. Transactions refuse stale plans or
+incomplete source coverage, verify all written values, and verify fingerprints
+of the earlier seasons before committing. Replaying identical source data
+produces zero changes. Derived absences cover only interior no-appearance gaps
+within observed team stints, with no guesses about opening, trailing or trade
+transition gaps. They remain historical observations, not pregame injury reports.
+
+`--profiles weekly` retains tracking, player offensive/team defensive playtypes
+and player/team shot zones as dated compressed raw captures. These unused feature
+sources do **not** overwrite the historical normalized profile tables. Each of
+60 datasets has its own last-success timestamp; unavailable feeds are reported
+and retried at the next run without undoing successful core ingestion. Synergy
+does not support a date cutoff, so its capture time determines availability;
+never treat a later season profile as data known before an earlier game.
+
+`nbainjuries` requires Java 8+ and reads the NBA's published report snapshots.
+`collect_injuries.py` keeps the PDF, parsed source and collection timestamps, and
+stores snapshots in `nba_injury_reports` (RLS enabled). Publication/collection
+timestamps and reported statuses are preserved; unresolved player IDs can be
+filled later by an exact roster match. Only **Out**
+counts as a confirmed absence. Questionable, Doubtful, Probable and Available
+remain separate statuses; an unsubmitted report is unknown. Exact player-name
+matching uses the master table and current NBA roster, including rookies who
+have not appeared. Unknown Out players prevent a complete absence-feature result.
+Snapshots do not modify the historical `player_game_absences` table.
+
+For a future pregame prediction, `nba.ingestion.injuries.load_report(as_of)`
+selects the latest report both published and fetched by prediction time.
+`confirmed_absences(snapshot, game_date, team, as_of, game_start)` returns only
+confirmed Out observations and a coverage flag, rejecting future/stale reports
+(default 60 minutes), unsubmitted teams and requests after tip-off. Supply the
+scheduled timezone-aware tip-off; the PDF's time string is retained without
+guessing AM/PM. A newer status supersedes an older Out designation. Ingestion
+does not itself run predictions or change the model's twenty-prior-games
+eligibility rule.
+
+The macOS installer enables stats collection at **7:15 a.m.** and optional injury
+checks every **15 minutes from 10 a.m. through 11:45 p.m.**, in the Mac's local
+timezone. These are user launch agents, so collection depends on this Mac and
+the user session being available; it is not hosted infrastructure. Plists contain
+paths and arguments, never credentials; scripts load existing `python/.env`
+configuration without printing it. Logs are in
+`python/data/raw/ingestion/logs/`, successful core runs update
+`SEASON/last_success.json`, and each injury capture has `result.json`.
+To inspect registered jobs, run `launchctl print gui/$(id -u)/com.nba-betting.daily-ingestion`
+or replace the label with `com.nba-betting.injury-reports`. To disable a job,
+use `launchctl bootout gui/$(id -u)/LABEL`; retain its plist for later reinstallation.
+
+The initial 2026-27 backfill covered 56 games through October 27: 1,275 player
+logs, 112 team-game rows, 417 observed stints and 50 interior-gap absences, plus
+48 new player master records. Verification and an unchanged replay plan are in
+`python/data/raw/ingestion/2026-27/backfill_v3_20261028/` and
+`python/data/raw/ingestion/2026-27/idempotence_20261028/` respectively.
+
 source /Users/james/Projects/nba-betting/.venv/bin/activate
 
 Stack
@@ -68,8 +154,9 @@ then refit regressors on all three seasons. No 2025-26 outcomes enter training o
 calibration. This is empirical temporal calibration after refitting, not a
 coverage guarantee. Probabilities concern a season-average proxy conditional on
 no push; sportsbook-line probabilities require a separate calibration exercise.
-Absences are supplied historical observations and positions are current metadata;
-this training setup is not yet a live pregame ingestion or forecasting service.
+Training absences are supplied historical observations and positions are current
+metadata. Live injury reports are collected separately; using them in automated
+pregame forecasts still requires a forecasting entry point.
 
 Each saved run creates a new `python/models/artifacts/train_blend_TIMESTAMP/`
 directory (or a new `--output-dir PATH`; existing directories are refused).
